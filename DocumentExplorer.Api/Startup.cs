@@ -117,6 +117,8 @@ namespace DocumentExplorer.Api
                 var dataInitilizer = app.ApplicationServices.GetService<IDataInitializer>();
                 dataInitilizer.SeedAsync();
             }
+
+            app.UseRouting();
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();

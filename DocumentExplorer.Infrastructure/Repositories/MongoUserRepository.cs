@@ -15,8 +15,11 @@ namespace DocumentExplorer.Infrastructure.Repositories
         {
             _database = database;
         }
+
         public async Task AddAsync(User user)
-            => await Users.InsertOneAsync(user);
+        {
+            await Users.InsertOneAsync(user);
+        }
 
         public async Task<IEnumerable<User>> GetAllAsync()
             => await Users.Find(_ => true).ToListAsync();

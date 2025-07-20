@@ -1,6 +1,8 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Conventions;
 using System.Collections.Generic;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 
 namespace DocumentExplorer.Infrastructure.Mongo
 {
@@ -13,6 +15,8 @@ namespace DocumentExplorer.Infrastructure.Mongo
             {
                 return;
             }
+            BsonSerializer.RegisterSerializer(new GuidSerializer(BsonType.String));
+            RegisterConventions();
             _initialized = true;
         }
 
