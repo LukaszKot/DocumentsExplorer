@@ -16,10 +16,9 @@ using Microsoft.AspNetCore.Http;
 using DocumentExplorer.Infrastructure.Mongo;
 using DocumentExplorer.Api.Framework;
 using Microsoft.Extensions.Logging;
-using NLog.Extensions.Logging;
-using NLog.Web;
 using DocumentExplorer.Infrastructure.EF;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Hosting;
 
 namespace DocumentExplorer.Api
 {
@@ -54,7 +53,7 @@ namespace DocumentExplorer.Api
             });
 
 
-            services.AddSingleton(AutoMapperConfig.Initialize());
+            services.AddSingleton(serviceProvider => AutoMapperConfig.Initialize(serviceProvider.GetRequiredService<ILoggerFactory>()));
             services.AddMemoryCache();
             services.AddAuthorization(x => x.AddPolicy("admin", p=>p.RequireRole("admin")));
             services.AddAuthorization(x => x.AddPolicy("user", p=>p.RequireRole("user")));
@@ -95,17 +94,14 @@ namespace DocumentExplorer.Api
 
             return new AutofacServiceProvider(ApplicationContainer);
         }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime appLifetime,
+        
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime appLifetime,
             ILoggerFactory loggerFactory)
         {
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             });
-            loggerFactory.AddNLog();
-            env.ConfigureNLog("nlog.config");
 
             if (env.IsDevelopment())
             {
@@ -121,7 +117,10 @@ namespace DocumentExplorer.Api
                 var dataInitilizer = app.ApplicationServices.GetService<IDataInitializer>();
                 dataInitilizer.SeedAsync();
             }
-            app.UseMvc();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
             appLifetime.ApplicationStopped.Register(()=> ApplicationContainer.Dispose());
         }
     }

@@ -1,9 +1,9 @@
-﻿using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
-using Microsoft.WindowsAzure.Storage.Blob;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Azure.Identity;
+using Azure.Storage.Blobs;
 
 namespace DocumentExplorer.Infrastructure.BlobStorage
 {
@@ -18,28 +18,29 @@ namespace DocumentExplorer.Infrastructure.BlobStorage
 
         public async Task UploadAsync(string blobName, string filePath)
         {
-            CloudBlockBlob blockBlob = await GetBlockBlobAsync(blobName);
+            var blockBlob = await GetBlockBlobAsync(blobName);
 
-            using (var fileStream = System.IO.File.Open(filePath, FileMode.Open))
+            await using (var fileStream = File.Open(filePath, FileMode.Open))
             {
                 fileStream.Position = 0;
-                await blockBlob.UploadFromStreamAsync(fileStream);
+                await blockBlob.UploadAsync(fileStream);
             }
             File.Delete(filePath);
         }
 
         public async Task<MemoryStream> DownloadAsync(string blobName)
         {
-            CloudBlockBlob blockBlob = await GetBlockBlobAsync(blobName);
+            var blockBlob = await GetBlockBlobAsync(blobName);
 
             var stream = new MemoryStream();
-            await blockBlob.DownloadToStreamAsync(stream);
+            var result = await blockBlob.DownloadStreamingAsync();
+            await result.Value.Content.CopyToAsync(stream);
             return stream;
         }
 
         public async Task DeleteAsync(string blobName)
         {
-            CloudBlockBlob blockBlob = await GetBlockBlobAsync(blobName);
+            var blockBlob = await GetBlockBlobAsync(blobName);
             await blockBlob.DeleteIfExistsAsync();
         }
 
@@ -58,37 +59,37 @@ namespace DocumentExplorer.Infrastructure.BlobStorage
 
         private async Task UpdateBlobName(string newBlobName, string oldBlobName)
         {
-            CloudBlockBlob blockCopy = await GetBlockBlobAsync(newBlobName);
+            var blockCopy = await GetBlockBlobAsync(newBlobName);
             if (!await blockCopy.ExistsAsync())  
             {  
-                CloudBlockBlob blob = await GetBlockBlobAsync(oldBlobName);
+                var blob = await GetBlockBlobAsync(oldBlobName);
 
                 if (await blob.ExistsAsync())  
                 {  
-                    await blockCopy.StartCopyAsync(blob);  
+                    await blockCopy.StartCopyFromUriAsync(blob.Uri);  
                     await blob.DeleteIfExistsAsync();  
                 } 
             } 
 
         }
 
-        private async Task<CloudBlobContainer> GetContainerAsync()
+        private async Task<BlobContainerClient> GetContainerAsync()
         {
-            CloudStorageAccount storageAccount = new CloudStorageAccount(new StorageCredentials(_blobStorageSettings.StorageAccount, _blobStorageSettings.StorageKey), false);
+            var blobServiceClient =
+                new BlobServiceClient(new Uri($"https://{_blobStorageSettings.StorageAccount}.blob.core.windows.net"),
+                    new DefaultAzureCredential());
 
-            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
-
-            CloudBlobContainer blobContainer = blobClient.GetContainerReference(_blobStorageSettings.ContainerName);
+            var blobContainer = blobServiceClient.GetBlobContainerClient(_blobStorageSettings.ContainerName);
             await blobContainer.CreateIfNotExistsAsync();
 
             return blobContainer;
         }
 
-        private async Task<CloudBlockBlob> GetBlockBlobAsync(string blobName)
+        private async Task<BlobClient> GetBlockBlobAsync(string blobName)
         {
-            CloudBlobContainer blobContainer = await GetContainerAsync();
+            var blobContainer = await GetContainerAsync();
 
-            CloudBlockBlob blockBlob = blobContainer.GetBlockBlobReference(blobName);
+            var blockBlob = blobContainer.GetBlobClient(blobName);
 
             return blockBlob;
         }

@@ -1,12 +1,13 @@
 using AutoMapper;
 using DocumentExplorer.Core.Domain;
 using DocumentExplorer.Infrastructure.DTO;
+using Microsoft.Extensions.Logging;
 
 namespace DocumentExplorer.Infrastructure.Mappers
 {
     public static class AutoMapperConfig
     {
-        public static IMapper Initialize()
+        public static IMapper Initialize(ILoggerFactory loggerFactory)
             => new MapperConfiguration(cfg =>
             {
                 cfg.CreateMap<User, UserDto>();
@@ -16,7 +17,7 @@ namespace DocumentExplorer.Infrastructure.Mappers
                 cfg.CreateMap<Order, ExtendedOrderDto>();
                 cfg.CreateMap<Permissions,PermissionsDto>();
                 cfg.CreateMap<Log,LogDto>();
-            })
+            }, loggerFactory)
             .CreateMapper();
     }
 }
